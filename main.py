@@ -10,8 +10,11 @@ api = 'GDzeXeFuL95oYDxg5DWiNUHwdgSYVujo'
 aggregate_urls = 'https://api.polygon.io/v2/aggs/ticker/'
 details_url = 'https://api.polygon.io/vX/reference/tickers/'
 
-# Date of candle
-date_of_candle = '2020-10-14/2020-10-14'
+# Date of candle for aggregates
+date_of_candle_aggregates = '2020-10-14/2020-10-14'
+
+# Date of candle for ticket details
+date_of_candle_tickets = '2020-10-14'
 
 # Candle type can be: minute, hour, day, week, month, quarter, year
 candle_type = 'hour'
@@ -28,7 +31,7 @@ def get_url_aggregates():
     list_of_urls = []
     for i in range(0, len(list_of_symbols)):
         final_url = aggregate_urls + list_of_symbols[
-            i] + '/range/1/' + candle_type + '/' + date_of_candle + '?adjusted=true&sort=asc&apiKey=' + api
+            i] + '/range/1/' + candle_type + '/' + date_of_candle_aggregates + '?adjusted=true&sort=asc&apiKey=' + api
         list_of_urls.append(final_url)
     return list_of_urls
 
@@ -37,9 +40,33 @@ def get_url_ticker_info():
     list_of_symbols = get_all_symbols()
     list_of_urls = []
     for i in range(0, len(list_of_symbols)):
-        final_url = details_url + list_of_symbols[i] + '?date=' + date_of_candle + '&apiKey=' + api
+        final_url = details_url + list_of_symbols[i] + '?date=' + date_of_candle_tickets + '&apiKey=' + api
         list_of_urls.append(final_url)
     return list_of_urls
+
+
+def ticket_info(list_urls):
+    data = {"ticker": [], "outstanding_shares": []}
+    list_of_tickers = []
+    list_of_shares = []
+    for k in range(0, len(list_urls)):
+        if k % 5 == 0 and k != 0:
+            time.sleep(65)
+        try:
+            data_from_web = requests.get(list_urls[k]).json()
+            results = data_from_web['results']
+
+            list_of_tickers.append(results['ticker'])
+            list_of_shares.append(results['outstanding_shares'])
+
+        except Exception as e:
+            print(e)
+        # else:
+        #     with open('data.csv', 'a', newline='') as f:
+        #         result.to_csv(f, index=False, header=False)
+    data["ticker"] = list_of_tickers
+    data['outstanding_shares'] = list_of_shares
+    print(data)
 
 
 def aggregates(list_urls):
@@ -91,8 +118,6 @@ def aggregates(list_urls):
                 market_high[res_dic['h']] = res_dic['t']
                 market_low[res_dic['l']] = res_dic['t']
                 market_volume[res_dic['v']] = res_dic['t']
-
-            ticker = data['ticker']
 
             # The highest market day close price:
             highest_market_price = max(zip(market_close.values(), market_close.keys()))[1]
@@ -147,24 +172,24 @@ def aggregates(list_urls):
 
 
 
-            # Adding all elements in a list, in order to convert it to the table
-            list_of_info.extend([ticker, close_price, date])
-
-            # Getting all data into a Panda DataTable
-            stock_info = pd.Series(list_of_info)
-            df = pd.DataFrame(stock_info)
-
-            result = df.transpose()
-            result = result.rename_axis(None)
+    #         # Adding all elements in a list, in order to convert it to the table
+    #         list_of_info.extend([ticker, close_price, date])
+    #
+    #         # Getting all data into a Panda DataTable
+    #         stock_info = pd.Series(list_of_info)
+    #         df = pd.DataFrame(stock_info)
+    #
+    #         result = df.transpose()
+    #         result = result.rename_axis(None)
         except Exception as e:
             print(e)
-        else:
-            with open('PreMarketData.csv', 'a', newline='') as f:
-                result.to_csv(f, index=False, header=False)
-
-    print('Data is loaded.')
+    #     else:
+    #         with open('data.csv', 'a', newline='') as f:
+    #             result.to_csv(f, index=False, header=False)
+    #
+    print('Aggregates data has been loaded.')
 
 
 if __name__ == '__main__':
-    print_hi('PyCharm')
+    ticket_info(get_url_ticker_info())
 
