@@ -75,7 +75,7 @@ def aggregates(list_urls):
             pre_market_high = {}
             pre_market_low = {}
             pre_market_volume = {}
-            for m in range(16):
+            for m in range(1, 17):
                 res_dic = results[m]
                 if m == 1:
                     market_open_price = res_dic['o']
@@ -93,6 +93,7 @@ def aggregates(list_urls):
                 market_volume[res_dic['v']] = res_dic['t']
 
             ticker = data['ticker']
+
             # The highest market day close price:
             highest_market_price = max(zip(market_close.values(), market_close.keys()))[1]
 
@@ -104,6 +105,18 @@ def aggregates(list_urls):
 
             # The GAP between highest and lowest price:
             gap_price = (lowest_market_price / highest_market_price) * 100
+
+            index = 0
+            for m in range(1, 7):
+                if pre_market_high.keys()[m] == highest_pre_market_price:
+                    index = m
+                    break
+
+            pm_low_after_high = pre_market_low.keys()[index]
+            for m in range(index, 7):
+                if pm_low_after_high > pre_market_low.keys()[m]:
+                    pm_low_after_high = pre_market_low.keys()[m]
+
 
             # The lowest PRE-market day price
             lowest_pre_market_price = min(zip(pre_market_close.values(), pre_market_close.keys()))[1]
@@ -130,6 +143,9 @@ def aggregates(list_urls):
 
             # Volume PRE-market:
             pre_market_volume = sum(pre_market_volume)
+
+
+
 
             # Adding all elements in a list, in order to convert it to the table
             list_of_info.extend([ticker, close_price, date])
