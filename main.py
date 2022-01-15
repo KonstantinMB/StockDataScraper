@@ -4,11 +4,11 @@ import time
 import datetime
 
 # Put your Polygon.io API Key in the brackets:
-api = 'GDzeXeFuL95oYDxg5DWiNUHwdgSYVujo'
+api = '*'
 
 # URL for extracting the stock info
 aggregate_urls = 'https://api.polygon.io/v2/aggs/ticker/'
-details_url = 'https://api.polygon.io/vX/reference/tickers/'
+details_url = 'https://api.polygon.io/v3/reference/tickers/'
 
 # Date of candle for aggregates
 date_of_candle_aggregates = '2020-10-14/2020-10-14'
@@ -46,7 +46,6 @@ def get_url_ticker_info():
 
 
 def ticket_info(list_urls):
-    data = {"ticker": [], "outstanding_shares": []}
     list_of_tickers = []
     list_of_shares = []
     for k in range(0, len(list_urls)):
@@ -57,42 +56,40 @@ def ticket_info(list_urls):
             results = data_from_web['results']
 
             list_of_tickers.append(results['ticker'])
-            list_of_shares.append(results['outstanding_shares'])
+            list_of_shares.append(results['weighted_shares_outstanding'])
 
         except Exception as e:
             print(e)
-        # else:
-        #     with open('data.csv', 'a', newline='') as f:
-        #         result.to_csv(f, index=False, header=False)
-    data["ticker"] = list_of_tickers
-    data['outstanding_shares'] = list_of_shares
-    print(data)
+    data = {"ticker": list_of_tickers, "outstanding_shares": list_of_shares}
+    return data
 
 
 def aggregates(list_urls):
-    head = ['Date', 'Ticker', 'Outstanding Shares', 'Prev Close Price', 'Today Open Price', 'High(h)', 'Low(l)'
-            'Gap(%)', 'Close(c)', 'Volume', 'High Time', 'Low Time', 'PM Volume', 'PM High', 'PM High Time',
-            'PM Low After High']
-    head = pd.DataFrame(head).transpose()
-    head.to_csv('data.csv', index=False, header=False)
+    list_prev_close_price = []
+    list_today_open_price = []
+    list_highs = []
+    list_lows = []
+    list_gaps = []
+    list_close = []
+    list_volume = []
+    list_highs_time = []
+    list_lows_time = []
+    list_pre_market_volumes = []
+    list_pre_market_highs = []
+    list_pre_market_highs_time = []
+    list_pre_market_lows_after_highs = []
 
     for k in range(0, len(list_urls)):
-        list_of_info = []
-
         # In order to retrieve free data from polygon
-        if k % 5 == 0 and k != 0:
+        if k % 5 == 0:
             time.sleep(65)
         try:
             # Getting the request from Polygon.io API:
             data = requests.get(list_urls[k]).json()
             results = data['results']
 
-            if len(results) == 0:
-                list_of_info = 'No data provided by the API.'
-
             # Getting all market day AND pre-market data.
             market_open_price = 0
-            market_close_price = 0
             market_close = {}
             market_high = {}
             market_low = {}
@@ -102,13 +99,14 @@ def aggregates(list_urls):
             pre_market_high = {}
             pre_market_low = {}
             pre_market_volume = {}
-            for m in range(1, 17):
+            for m in range(16):
                 res_dic = results[m]
-                if m == 1:
+                if m == 0:
                     market_open_price = res_dic['o']
-                if m == 16:
-                    market_close_price = res_dic['c']
-                if m <= 6:
+                    list_today_open_price.append(market_open_price)
+                if m == 15:
+                    list_close.append(res_dic['c'])
+                if m < 6:
                     pre_market_close[res_dic['c']] = res_dic['t']
                     pre_market_high[res_dic['h']] = res_dic['t']
                     pre_market_low[res_dic['l']] = res_dic['t']
@@ -119,57 +117,72 @@ def aggregates(list_urls):
                 market_low[res_dic['l']] = res_dic['t']
                 market_volume[res_dic['v']] = res_dic['t']
 
-            # The highest market day close price:
-            highest_market_price = max(zip(market_close.values(), market_close.keys()))[1]
+            # The highest market day price:
+            highest_market_price = max(list(market_high.keys()))
+            list_highs.append(highest_market_price)
 
             # The highest PRE-market day price
-            highest_pre_market_price = max(zip(pre_market_close.values(), pre_market_close.keys()))[1]
+            highest_pre_market_price = max(list(pre_market_high.keys()))
+            list_pre_market_highs.append(highest_market_price)
 
-            # The lowest market day close price:
-            lowest_market_price = min(zip(market_close.values(), market_close.keys()))[1]
+            # The lowest market day price:
+            lowest_market_price = min(list(market_low.keys()))
+            list_lows.append(lowest_market_price)
+
+            # TODO
+            yesterday_market_close = 0
+            list_prev_close_price.append(yesterday_market_close)
 
             # The GAP between highest and lowest price:
-            gap_price = (lowest_market_price / highest_market_price) * 100
+            gap_price = yesterday_market_close / market_open_price * 100
+            list_gaps.append(gap_price)
 
             index = 0
-            for m in range(1, 7):
-                if pre_market_high.keys()[m] == highest_pre_market_price:
+            for m in range(6):
+                if list(pre_market_high.keys())[m] == highest_pre_market_price:
                     index = m
                     break
 
-            pm_low_after_high = pre_market_low.keys()[index]
-            for m in range(index, 7):
-                if pm_low_after_high > pre_market_low.keys()[m]:
-                    pm_low_after_high = pre_market_low.keys()[m]
-
+            pm_low_after_high = list(pre_market_low.keys())[index]
+            for m in range(index, 6):
+                if pm_low_after_high > list(pre_market_low.keys())[m]:
+                    pm_low_after_high = list(pre_market_low.keys())[m]
+            list_pre_market_lows_after_highs.append(pm_low_after_high)
 
             # The lowest PRE-market day price
-            lowest_pre_market_price = min(zip(pre_market_close.values(), pre_market_close.keys()))[1]
+            # lowest_pre_market_price = min(zip(pre_market_low.values(), list(pre_market_low.keys())))[1]
 
             # The date & hour of the highest MARKET close price
-            highest_market_date = datetime.datetime.fromtimestamp(market_close[highest_market_price] / 1000.0,
+            highest_market_date = datetime.datetime.fromtimestamp(market_high[highest_market_price] / 1000.0,
                                                    tz=datetime.timezone.utc)
+            list_highs_time.append(highest_market_date)
 
             # The date & hour of the highest PRE-MARKET close price
-            highest_pre_market_date = datetime.datetime.fromtimestamp(pre_market_close[highest_pre_market_price] / 1000.0,
+            highest_pre_market_date = datetime.datetime.fromtimestamp(pre_market_high[highest_pre_market_price] / 1000.0,
                                                    tz=datetime.timezone.utc)
+            list_pre_market_highs_time.append(highest_pre_market_date)
 
-            # The date & hour of the lowest MARKET close price
-            lowest_market_date = datetime.datetime.fromtimestamp(market_close[lowest_market_price] / 1000.0,
+            # The date & hour of the lowest MARKET price
+            lowest_market_date = datetime.datetime.fromtimestamp(market_low[lowest_market_price] / 1000.0,
                                                                   tz=datetime.timezone.utc)
-
-            # # The date & hour of the lowest PRE-MARKET close price
-            # lowest_pre_market_date = datetime.datetime.fromtimestamp(
-            #     pre_market_close[lowest_pre_market_price] / 1000.0,
-            #     tz=datetime.timezone.utc)
+            list_lows_time.append(lowest_market_date)
 
             # Total volume for the day:
             market_volume = sum(market_volume)
+            list_volume.append(market_volume)
 
             # Volume PRE-market:
             pre_market_volume = sum(pre_market_volume)
+            list_pre_market_volumes.append(pre_market_volume)
+        except Exception as e:
+            print(e)
 
-
+    return {'Prev Close Price': list_prev_close_price, 'Today Open Price': list_today_open_price,
+            'High(h)': list_highs, 'Low(l)': list_lows,'Gap(%)': list_gaps,
+            'Close(c)': list_close, 'Volume': list_volume, 'High Time': list_highs_time,
+            'Low Time': list_lows_time, 'PM Volume': list_pre_market_volumes,
+            'PM High': list_pre_market_highs, 'PM High Time': list_pre_market_highs_time,
+            'PM Low After High': list_pre_market_lows_after_highs}
 
 
     #         # Adding all elements in a list, in order to convert it to the table
@@ -181,15 +194,13 @@ def aggregates(list_urls):
     #
     #         result = df.transpose()
     #         result = result.rename_axis(None)
-        except Exception as e:
-            print(e)
     #     else:
     #         with open('data.csv', 'a', newline='') as f:
     #             result.to_csv(f, index=False, header=False)
     #
-    print('Aggregates data has been loaded.')
-
 
 if __name__ == '__main__':
-    ticket_info(get_url_ticker_info())
-
+    data1 = ticket_info(get_url_ticker_info())
+    print(data1)
+    data2 = aggregates(get_url_aggregates())
+    print(data2)
