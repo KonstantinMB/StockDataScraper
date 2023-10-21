@@ -2,9 +2,18 @@ import requests
 import pandas as pd
 import time
 import datetime
+from dotenv import load_dotenv
+import os
 
-# Put your Polygon.io API Key in the brackets:
-api = '*'
+# Load environment variables from .env
+load_dotenv()
+
+# Retrieve the API key from the environment
+api_key = os.getenv("POLYGON_API_KEY")
+
+if api_key is None:
+    raise ValueError("You haven't specified Polygon POLYGON_API_KEY in .env file. " +
+                     "To do so, create a .env file in the projects directory and add the key in teh following format: POLYGON_API_KEY=<YOUR-API_KEY>")
 
 # URL for extracting the stock info
 aggregate_urls = 'https://api.polygon.io/v2/aggs/ticker/'
@@ -183,24 +192,20 @@ def aggregates(list_urls):
             'Low Time': list_lows_time, 'PM Volume': list_pre_market_volumes,
             'PM High': list_pre_market_highs, 'PM High Time': list_pre_market_highs_time,
             'PM Low After High': list_pre_market_lows_after_highs}
-
-
-    #         # Adding all elements in a list, in order to convert it to the table
-    #         list_of_info.extend([ticker, close_price, date])
-    #
-    #         # Getting all data into a Panda DataTable
-    #         stock_info = pd.Series(list_of_info)
-    #         df = pd.DataFrame(stock_info)
-    #
-    #         result = df.transpose()
-    #         result = result.rename_axis(None)
-    #     else:
-    #         with open('data.csv', 'a', newline='') as f:
-    #             result.to_csv(f, index=False, header=False)
-    #
+    
 
 if __name__ == '__main__':
-    data1 = ticket_info(get_url_ticker_info())
-    print(data1)
-    data2 = aggregates(get_url_aggregates())
-    print(data2)
+
+    stock_information = aggregates(get_url_aggregates())
+    
+    # Getting all data into a Panda DataTable
+    series_of_stock_information = pd.Series(stock_information)
+
+    # Tranform the dict into a Pandas DataFrame
+    df = pd.DataFrame(series_of_stock_information)
+    result = df.transpose()
+    result = result.rename_axis(None)
+
+    # Save the DF in a new CSV file
+    with open('data.csv', 'a', newline='') as f:
+        result.to_csv(f, index=False, header=False)
